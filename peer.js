@@ -129,6 +129,7 @@ async function startPeer() {
 
                     setupTurnFallback(conn);
                     setupConnection(conn);
+                    registerConnectionHealthMonitor(conn);
 
                 }
             );
@@ -150,14 +151,16 @@ async function startPeer() {
                         "エラー"
                     );
 
-                    setConnectionStatus(
+                    markConnectionFailure(
                         "PeerJSエラー: " + error.type,
-                        CONNECTION_STATES.failed
+                        "PeerJS ERROR: " + error.type
                     );
-
-                    addDebugLog(
-                        "PeerJS ERROR: " +
-                        error.type
+                    attemptPeerRecovery("PeerJS ERROR: " + error.type).catch(error => {
+                        addDebugLog("Peer自動復旧失敗: " + String(error));
+                    });
+                    showFailureAlert(
+                        "PeerJS 接続が壊れました。再読み込みしてやり直してください。",
+                        "PeerJS ERROR: " + error.type
                     );
 
                 }
@@ -183,6 +186,14 @@ async function startPeer() {
                     addDebugLog(
                         "PeerServerから切断"
                     );
+
+                    addSystemMessage(
+                        "PeerServerとの接続が切断されました。再接続をお試しください。"
+                    );
+
+                    if (!isManualDisconnect && connectionTargetId) {
+                        scheduleConnectionRetry(connectionTargetId);
+                    }
 
                 }
             );
@@ -303,6 +314,50 @@ connectButton.addEventListener(
 
         }
 
+        isManualDisconnect = false;
+        clearConnectionRetryTimer();
+        clearConnectionAttemptTimeout();
+        connectionRetryScheduled = false;
+        connectionTargetId = id;
+
+        connectToPeerId(id, false);
+
+    }
+);
+
+reconnectButton.addEventListener(
+    "click",
+    async () => {
+
+        const id =
+            peerIdInput.value.trim();
+
+        if (!id) {
+            setConnectionStatus(
+                "相手のPeer IDを入力してください",
+                CONNECTION_STATES.failed
+            );
+            return;
+        }
+
+        isManualDisconnect = false;
+        connectionRetryCount = 0;
+        connectionRetryScheduled = false;
+        clearConnectionRetryTimer();
+        clearConnectionAttemptTimeout();
+
+        if (!peer) {
+            try {
+                await startPeer();
+            } catch (error) {
+                addDebugLog(
+                    "再接続準備失敗: " + String(error)
+                );
+                return;
+            }
+        }
+
+        connectionTargetId = id;
         connectToPeerId(id, false);
 
     }
