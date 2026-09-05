@@ -117,6 +117,69 @@ function updateDebugDetailToggle() {
         debugDetailPanel.hidden ? "詳細を表示" : "詳細を閉じる";
 }
 
+function bindDebugTestControls() {
+    const peerButton = document.getElementById("debug-force-peer-failure");
+    const iceButton = document.getElementById("debug-force-ice-failure");
+    const dataButton = document.getElementById("debug-force-data-failure");
+    const corruptionButton = document.getElementById("debug-force-transfer-corruption");
+    const transferFailureButton = document.getElementById("debug-force-transfer-failure");
+    const clearButton = document.getElementById("debug-clear-test-failure");
+
+    if (peerButton) {
+        peerButton.addEventListener("click", () => {
+            if (typeof window.forceConnectionFailure === "function") {
+                window.forceConnectionFailure("peer");
+                addDebugLog("テスト: Peer 接続を破壊しました");
+            }
+        });
+    }
+
+    if (iceButton) {
+        iceButton.addEventListener("click", () => {
+            if (typeof window.forceConnectionFailure === "function") {
+                window.forceConnectionFailure("ice");
+                addDebugLog("テスト: ICE 接続を破壊しました");
+            }
+        });
+    }
+
+    if (dataButton) {
+        dataButton.addEventListener("click", () => {
+            if (typeof window.forceConnectionFailure === "function") {
+                window.forceConnectionFailure("data");
+                addDebugLog("テスト: DataChannel を破壊しました");
+            }
+        });
+    }
+
+    if (corruptionButton) {
+        corruptionButton.addEventListener("click", () => {
+            if (typeof window.forceTransferCorruption === "function") {
+                window.forceTransferCorruption(true);
+                addDebugLog("テスト: 送信破損を有効化しました");
+            }
+        });
+    }
+
+    if (transferFailureButton) {
+        transferFailureButton.addEventListener("click", () => {
+            if (typeof window.forceTransferFailure === "function") {
+                window.forceTransferFailure(true);
+                addDebugLog("テスト: 送信失敗を有効化しました");
+            }
+        });
+    }
+
+    if (clearButton) {
+        clearButton.addEventListener("click", () => {
+            if (typeof window.disableFailureTest === "function") {
+                window.disableFailureTest();
+                addDebugLog("テスト: 故障モードを解除しました");
+            }
+        });
+    }
+}
+
 function getFirstNumericValue(report, keys) {
     if (!report) {
         return null;
@@ -216,6 +279,7 @@ debugDetailToggle.addEventListener(
     }
 );
 
+bindDebugTestControls();
 updateDebugDetailToggle();
 
 // ========================================
@@ -326,6 +390,7 @@ async function updateWebRTCStats(conn) {
         let bytesSentValue = null;
         let bytesReceivedValue = null;
         let packetsLostValue = null;
+        let routeStateLabel = "未確定";
 
         stats.forEach(
             report => {
@@ -411,12 +476,16 @@ async function updateWebRTCStats(conn) {
 
         if (hasRelay) {
             routeScore = 55;
+            routeStateLabel = "TURN経由";
         } else if (hasSrflx) {
             routeScore = 75;
+            routeStateLabel = "STUN経由";
         } else if (hasHost) {
             routeScore = 90;
+            routeStateLabel = "Host経由";
         } else {
             routeScore = 35;
+            routeStateLabel = "候補未確定";
         }
 
         overallScore = Math.round((iceScore * 0.7) + (routeScore * 0.3));
@@ -506,15 +575,18 @@ async function updateWebRTCStats(conn) {
 
             if (localType === "TURN" || remoteType === "TURN") {
                 routeScore = 55;
+                routeStateLabel = "TURN経由";
             } else if (localType === "STUN" || remoteType === "STUN") {
                 routeScore = 75;
+                routeStateLabel = "STUN経由";
             } else {
                 routeScore = 90;
+                routeStateLabel = "Host経由";
             }
 
             overallScore = Math.round((iceScore * 0.7) + (routeScore * 0.3));
             updateDebugStabilityScores(overallScore, iceScore, routeScore);
-            updateDebugSelectedRoute(routeSummary);
+            updateDebugSelectedRoute(routeSummary || routeStateLabel);
 
             addDebugLog(
                 "選択Candidate Pair"
@@ -535,9 +607,9 @@ async function updateWebRTCStats(conn) {
 
         } else {
 
-            updateDebugSelectedRoute("未確定");
+            updateDebugSelectedRoute(routeStateLabel);
             addDebugLog(
-                "選択Candidate Pairを取得できません"
+                "選択Candidate Pairを取得できません。STUN候補または経路候補がまだ見つかっていません。"
             );
 
         }
