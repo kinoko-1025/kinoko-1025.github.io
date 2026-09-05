@@ -1,0 +1,1 @@
+# kinoko-1025.github.io
