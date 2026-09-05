@@ -148,22 +148,38 @@ body {
     background: #111;
 }
 
-.disconnect-button {
+.secondary-button,
+.disconnect-button,
+.cancel-button {
     width: 100%;
 
     margin-top: 10px;
 
     padding: 10px;
 
-    border: 1px solid #d0d0d0;
     border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
 
+.secondary-button {
+    border: 1px solid #d0d0d0;
     background: #fff;
     color: #333;
+}
 
-    font-size: 14px;
+.secondary-button:hover {
+    background: #f7f7f7;
+}
 
-    cursor: pointer;
+.secondary-button:active {
+    background: #efefef;
+}
+
+.disconnect-button {
+    border: 1px solid #d0d0d0;
+    background: #fff;
+    color: #333;
 }
 
 .disconnect-button:hover {
@@ -172,6 +188,20 @@ body {
 
 .disconnect-button:active {
     background: #efefef;
+}
+
+.cancel-button {
+    border: 1px solid #e5a0a0;
+    background: #fff5f5;
+    color: #a53434;
+}
+
+.cancel-button:hover {
+    background: #ffeaea;
+}
+
+.cancel-button:active {
+    background: #ffdcdc;
 }
 
 
@@ -185,6 +215,26 @@ body {
     font-size: 13px;
 
     color: #666;
+}
+
+#status[data-state="connecting"] {
+    color: #9b6a00;
+    font-weight: 600;
+}
+
+#status[data-state="connected"] {
+    color: #1b7f45;
+    font-weight: 600;
+}
+
+#status[data-state="failed"] {
+    color: #b42318;
+    font-weight: 600;
+}
+
+#status[data-state="disconnected"] {
+    color: #555;
+    font-weight: 600;
 }
 
 
@@ -382,6 +432,41 @@ body {
     border-radius: 10px;
 
     object-fit: contain;
+}
+
+
+/* ==================== */
+/* 動画メッセージ */
+/* ==================== */
+
+.video-message {
+    width: fit-content;
+    max-width: 70%;
+
+    margin: 10px 0;
+}
+
+.video-message.self {
+    margin-left: auto;
+}
+
+.video-message p {
+    margin: 0 0 5px 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: #666;
+    font-size: 13px;
+    max-width: 100%;
+}
+
+.video-message video {
+    display: block;
+    width: min(420px, 70vw);
+    max-height: 320px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    background: #000;
 }
 
 
