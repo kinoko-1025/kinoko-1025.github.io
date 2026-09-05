@@ -1,0 +1,851 @@
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+
+    width: 100%;
+    height: 100%;
+}
+
+body {
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+    background: #f2f3f5;
+    color: #222;
+}
+
+
+/* ==================== */
+/* アプリ全体 */
+/* ==================== */
+
+.app {
+    display: flex;
+
+    width: 100%;
+    height: 100vh;
+
+    overflow: hidden;
+}
+
+
+/* ==================== */
+/* 左：サイドバー */
+/* ==================== */
+
+.sidebar {
+    width: 280px;
+    min-width: 280px;
+
+    padding: 24px;
+
+    background: #ffffff;
+
+    border-right: 1px solid #dcdcdc;
+
+    overflow-y: auto;
+}
+
+.sidebar h1 {
+    margin: 0 0 32px 0;
+
+    font-size: 24px;
+    letter-spacing: 1px;
+}
+
+
+/* ==================== */
+/* 接続パネル */
+/* ==================== */
+
+.connection-panel h3 {
+    margin: 22px 0 8px 0;
+
+    font-size: 14px;
+    font-weight: 600;
+}
+
+
+/* ==================== */
+/* 自分のPeer ID */
+/* ==================== */
+
+#my-id {
+    display: block;
+
+    width: 100%;
+
+    padding: 10px;
+
+    background: #f1f1f1;
+
+    border: 1px solid #d5d5d5;
+    border-radius: 6px;
+
+    font-size: 12px;
+
+    word-break: break-all;
+}
+
+
+/* ==================== */
+/* 相手のPeer ID */
+/* ==================== */
+
+#peer-id {
+    width: 100%;
+
+    padding: 10px;
+
+    border: 1px solid #cfcfcf;
+    border-radius: 6px;
+
+    font-size: 14px;
+
+    outline: none;
+}
+
+#peer-id:focus {
+    border-color: #777;
+}
+
+
+/* ==================== */
+/* 接続ボタン */
+/* ==================== */
+
+#connect {
+    width: 100%;
+
+    margin-top: 10px;
+
+    padding: 10px;
+
+    border: none;
+    border-radius: 6px;
+
+    background: #222;
+    color: white;
+
+    font-size: 14px;
+
+    cursor: pointer;
+}
+
+#connect:hover {
+    background: #444;
+}
+
+#connect:active {
+    background: #111;
+}
+
+.disconnect-button {
+    width: 100%;
+
+    margin-top: 10px;
+
+    padding: 10px;
+
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+
+    background: #fff;
+    color: #333;
+
+    font-size: 14px;
+
+    cursor: pointer;
+}
+
+.disconnect-button:hover {
+    background: #f7f7f7;
+}
+
+.disconnect-button:active {
+    background: #efefef;
+}
+
+
+/* ==================== */
+/* 接続状態 */
+/* ==================== */
+
+#status {
+    margin-top: 18px;
+
+    font-size: 13px;
+
+    color: #666;
+}
+
+
+/* ==================== */
+/* 右：チャット */
+/* ==================== */
+
+.chat {
+    display: flex;
+    flex-direction: column;
+
+    flex: 1;
+
+    min-width: 0;
+
+    background: #f7f7f7;
+}
+
+
+/* ==================== */
+/* チャットヘッダー */
+/* ==================== */
+
+.chat-header {
+    padding: 20px 24px;
+
+    background: #ffffff;
+
+    border-bottom: 1px solid #dcdcdc;
+}
+
+.chat-header h2 {
+    margin: 0;
+
+    font-size: 20px;
+}
+
+
+/* ==================== */
+/* メッセージ表示 */
+/* ==================== */
+
+.messages {
+    flex: 1;
+
+    padding: 24px;
+
+    overflow-y: auto;
+}
+
+
+/* ==================== */
+/* テキストメッセージ */
+/* ==================== */
+
+.messages p {
+    width: fit-content;
+    max-width: 70%;
+
+    margin: 8px 0;
+    padding: 10px 14px;
+
+    background: #ffffff;
+
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+
+    font-size: 14px;
+    white-space: pre-wrap;
+    line-height: 1.5;
+
+    overflow-wrap: anywhere;
+}
+
+.messages .message,
+.messages .system-message {
+    width: fit-content;
+    max-width: 70%;
+
+    margin: 8px 0;
+    padding: 10px 14px;
+
+    background: #ffffff;
+
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+
+    overflow-wrap: anywhere;
+}
+
+.messages .message.self {
+    margin-left: auto;
+
+    background: #e9e9e9;
+}
+
+.messages .system-message {
+    margin-left: auto;
+    margin-right: auto;
+
+    background: transparent;
+
+    border: none;
+
+    color: #888;
+
+    font-size: 12px;
+
+    text-align: center;
+}
+
+
+/* ==================== */
+/* 自分のメッセージ */
+/* ==================== */
+
+.messages p.self {
+    margin-left: auto;
+
+    background: #e9e9e9;
+}
+
+
+/* ==================== */
+/* システムメッセージ */
+/* ==================== */
+
+.messages p.system {
+    margin-left: auto;
+    margin-right: auto;
+
+    background: transparent;
+
+    border: none;
+
+    color: #888;
+
+    font-size: 12px;
+
+    text-align: center;
+}
+
+
+/* ==================== */
+/* 画像メッセージ */
+/* ==================== */
+
+.image-message {
+    width: fit-content;
+    max-width: 70%;
+
+    margin: 10px 0;
+}
+
+
+/* 自分の画像 */
+
+.image-message.self {
+    margin-left: auto;
+}
+
+
+/* 画像ファイル名 */
+
+.image-message p {
+    margin: 0 0 5px 0;
+
+    padding: 0;
+
+    background: transparent;
+
+    border: none;
+
+    color: #666;
+
+    font-size: 13px;
+
+    max-width: 100%;
+}
+
+
+/* 画像本体 */
+
+.image-message img {
+    display: block;
+
+    max-width: 320px;
+    max-height: 320px;
+
+    border: 1px solid #ddd;
+    border-radius: 10px;
+
+    object-fit: contain;
+}
+
+
+/* ==================== */
+/* 下部入力エリア */
+/* ==================== */
+
+.message-input {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 14px 18px;
+
+    background: #ffffff;
+
+    border-top: 1px solid #dcdcdc;
+}
+
+
+/* ==================== */
+/* メッセージ入力欄 */
+/* ==================== */
+
+#message {
+    flex: 1;
+
+    min-width: 0;
+    min-height: 42px;
+    max-height: 180px;
+    height: 42px;
+
+    padding: 11px 14px;
+
+    border: 1px solid #cfcfcf;
+    border-radius: 7px;
+
+    font-size: 14px;
+    line-height: 1.5;
+
+    outline: none;
+    resize: none;
+    overflow-y: hidden;
+}
+
+#message:focus {
+    border-color: #777;
+}
+
+
+/* ==================== */
+/* 画像選択 */
+/* ==================== */
+
+#image {
+    max-width: 220px;
+
+    font-size: 13px;
+}
+
+
+/* ==================== */
+/* 送信ボタン */
+/* ==================== */
+
+#send {
+    padding: 11px 20px;
+
+    border: none;
+    border-radius: 7px;
+
+    background: #222;
+    color: white;
+
+    font-size: 14px;
+
+    cursor: pointer;
+}
+
+#send:hover {
+    background: #444;
+}
+
+#send:active {
+    background: #111;
+}
+
+
+/* ==================== */
+/* スクロールバー */
+/* ==================== */
+
+.messages::-webkit-scrollbar,
+.sidebar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.messages::-webkit-scrollbar-thumb,
+.sidebar::-webkit-scrollbar-thumb {
+    background: #c8c8c8;
+
+    border-radius: 4px;
+}
+
+
+/* ==================== */
+/* 狭い画面 */
+/* ==================== */
+
+@media (max-width: 700px) {
+
+    .app {
+        flex-direction: column;
+
+        overflow: auto;
+    }
+
+    .sidebar {
+        width: 100%;
+        min-width: 0;
+
+        border-right: none;
+        border-bottom: 1px solid #dcdcdc;
+    }
+
+    .chat {
+        min-height: 500px;
+    }
+
+    .message-input {
+        flex-wrap: wrap;
+    }
+
+    #message {
+        width: 100%;
+        flex-basis: 100%;
+    }
+
+    #image {
+        flex: 1;
+
+        max-width: none;
+    }
+
+}
+
+/* ==================== */
+/* デバッグボタン */
+/* ==================== */
+
+#debug-toggle {
+    margin-left: auto;
+
+    padding: 8px 12px;
+
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+
+    background: #ffffff;
+    color: #333;
+
+    font-size: 13px;
+
+    cursor: pointer;
+}
+
+#debug-toggle:hover {
+    background: #f0f0f0;
+}
+
+#debug-toggle:active {
+    background: #e5e5e5;
+}
+
+.transfer-progress {
+    margin: 0 18px 10px;
+    padding: 10px 12px;
+    background: #ffffff;
+    border: 1px solid #dcdcdc;
+    border-radius: 8px;
+}
+
+.transfer-progress-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #555;
+}
+
+.transfer-bar {
+    width: 100%;
+    height: 10px;
+    background: #f0f0f0;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.transfer-bar-fill {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #4f8cff, #76b7ff);
+    border-radius: 999px;
+    transition: width 0.15s ease-out;
+}
+
+
+/* ==================== */
+/* デバッグパネル */
+/* ==================== */
+
+.debug-panel {
+    position: fixed;
+
+    top: 20px;
+    right: 20px;
+
+    width: 360px;
+    max-width: calc(100vw - 40px);
+
+    max-height: calc(100vh - 40px);
+
+    background: #ffffff;
+
+    border: 1px solid #d5d5d5;
+    border-radius: 10px;
+
+    box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.15);
+
+    overflow: hidden;
+
+    z-index: 1000;
+}
+
+
+/* ==================== */
+/* デバッグヘッダー */
+/* ==================== */
+
+.debug-header {
+    display: flex;
+    align-items: center;
+
+    padding: 14px 16px;
+
+    background: #f5f5f5;
+
+    border-bottom: 1px solid #dcdcdc;
+}
+
+.debug-header h2 {
+    margin: 0;
+
+    font-size: 17px;
+}
+
+#debug-close {
+    margin-left: auto;
+
+    width: 30px;
+    height: 30px;
+
+    border: none;
+    border-radius: 6px;
+
+    background: transparent;
+
+    font-size: 22px;
+    line-height: 1;
+
+    cursor: pointer;
+}
+
+#debug-close:hover {
+    background: #e5e5e5;
+}
+
+
+/* ==================== */
+/* デバッグ内容 */
+/* ==================== */
+
+.debug-content {
+    padding: 16px;
+
+    max-height: calc(100vh - 110px);
+
+    overflow-y: auto;
+}
+
+.debug-content h3 {
+    margin: 16px 0 8px 0;
+
+    font-size: 13px;
+
+    color: #555;
+}
+
+.debug-content h3:first-child {
+    margin-top: 0;
+}
+
+.debug-detail-toggle-wrap {
+    margin: 8px 0 12px;
+}
+
+.debug-detail-toggle {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    background: #f8f8f8;
+    color: #333;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.debug-detail-toggle:hover {
+    background: #f0f0f0;
+}
+
+.debug-detail-panel {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border: 1px solid #e1e1e1;
+    border-radius: 8px;
+    background: #fafafa;
+}
+
+.debug-raw-stats {
+    margin: 8px 0 0;
+    padding: 8px 10px;
+    max-height: 220px;
+    overflow: auto;
+    border: 1px solid #e1e1e1;
+    border-radius: 6px;
+    background: #fff;
+    color: #222;
+    font-size: 11px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+
+/* ==================== */
+/* デバッグ項目 */
+/* ==================== */
+
+.debug-item {
+    display: flex;
+    align-items: flex-start;
+
+    gap: 12px;
+
+    padding: 7px 0;
+
+    border-bottom: 1px solid #eeeeee;
+
+    font-size: 13px;
+}
+
+.debug-item span:first-child {
+    min-width: 120px;
+
+    color: #666;
+}
+
+.debug-item span:last-child,
+.debug-item code {
+    overflow-wrap: anywhere;
+
+    color: #222;
+}
+
+
+/* ==================== */
+/* デバッグスクロールバー */
+/* ==================== */
+
+.debug-content::-webkit-scrollbar {
+    width: 7px;
+}
+
+.debug-content::-webkit-scrollbar-thumb {
+    background: #c8c8c8;
+
+    border-radius: 4px;
+}
+
+
+/* ==================== */
+/* 狭い画面 */
+/* ==================== */
+
+@media (max-width: 700px) {
+
+    .debug-panel {
+        top: 10px;
+        right: 10px;
+
+        width: calc(100vw - 20px);
+        max-width: none;
+
+        max-height: calc(100vh - 20px);
+    }
+
+}
+
+/* ==================== */
+/* 画像拡大表示 */
+/* ==================== */
+
+.image-overlay {
+    position: fixed;
+    inset: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: rgba(0, 0, 0, 0.82);
+    z-index: 2000;
+
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+.image-overlay img {
+    display: block;
+    max-width: 90vw;
+    max-height: 90vh;
+
+    object-fit: contain;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.image-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+
+    width: 42px;
+    height: 42px;
+
+    border: none;
+    border-radius: 50%;
+
+    background: rgba(255, 255, 255, 0.95);
+    color: #333;
+
+    font-size: 28px;
+    line-height: 42px;
+    cursor: pointer;
+}
+
+.image-close:hover {
+    background: #ffffff;
+}
+
+.image-close:active {
+    background: #e5e5e5;
+}
+```

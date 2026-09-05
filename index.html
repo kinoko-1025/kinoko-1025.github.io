@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>P2P Chat</title>
+
+    <link
+        rel="stylesheet"
+        href="./style.css"
+    >
+</head>
+
+<body>
+
+    <div class="app">
+
+        <aside class="sidebar">
+
+            <h1>P2P CHAT</h1>
+
+            <section class="connection-panel">
+
+                <h3>自分のPeer ID</h3>
+
+                <code id="my-id">
+                    接続中...
+                </code>
+
+                <h3>相手のPeer ID</h3>
+
+                <input
+                    id="peer-id"
+                    type="text"
+                    placeholder="相手のPeer ID"
+                >
+
+                <button
+                    id="connect"
+                    type="button"
+                >
+                    接続
+                </button>
+
+                <button
+                    id="disconnect"
+                    type="button"
+                    class="disconnect-button"
+                >
+                    切断
+                </button>
+
+                <p id="status">
+                    PeerServerに接続しています...
+                </p>
+
+            </section>
+
+        </aside>
+
+
+        <main class="chat">
+
+            <header class="chat-header">
+
+                <h2>メッセージ</h2>
+
+                <button
+                    id="debug-toggle"
+                    type="button"
+                >
+                    ⚙ デバッグ
+                </button>
+
+            </header>
+
+
+            <div
+                id="messages"
+                class="messages"
+            >
+                <!-- メッセージがここに追加される -->
+            </div>
+
+
+            <div
+                id="transfer-progress"
+                class="transfer-progress"
+                hidden
+            >
+                <div class="transfer-progress-header">
+                    <span id="transfer-progress-label">送信中</span>
+                    <span id="transfer-progress-text">0%</span>
+                </div>
+                <div class="transfer-bar">
+                    <div
+                        id="transfer-progress-fill"
+                        class="transfer-bar-fill"
+                    ></div>
+                </div>
+            </div>
+
+            <div class="message-input">
+
+                <textarea
+                    id="message"
+                    rows="1"
+                    placeholder="メッセージを入力（Shift+Enterで改行）"
+                ></textarea>
+
+                <!-- 添付ファイル選択 -->
+                <input
+                    id="file"
+                    type="file"
+                    hidden
+                >
+
+                <!-- 添付ボタン -->
+                <button
+                    id="attach"
+                    type="button"
+                >
+                    📎 添付
+                </button>
+
+                <!-- 送信ボタン -->
+                <button
+                    id="send"
+                    type="button"
+                >
+                    送信
+                </button>
+
+            </div>
+
+        </main>
+
+    </div>
+
+
+    <!-- ================================ -->
+    <!-- デバッグパネル -->
+    <!-- ================================ -->
+
+    <div
+        id="debug-panel"
+        class="debug-panel"
+        hidden
+    >
+
+        <div class="debug-header">
+
+            <h2>デバッグ</h2>
+
+            <button
+                id="debug-close"
+                type="button"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div class="debug-content">
+
+            <h3>安定度</h3>
+
+            <div class="debug-item">
+
+                <span>
+                    総合安定度
+                </span>
+
+                <span id="debug-overall-stability">
+                    ---
+                </span>
+
+            </div>
+
+            <div class="debug-item">
+
+                <span>
+                    ICE安定度
+                </span>
+
+                <span id="debug-ice-stability">
+                    ---
+                </span>
+
+            </div>
+
+            <div class="debug-item">
+
+                <span>
+                    経路安定度
+                </span>
+
+                <span id="debug-route-stability">
+                    ---
+                </span>
+
+            </div>
+
+            <h3>PeerJS</h3>
+
+            <div class="debug-item">
+
+                <span>
+                    Peer状態
+                </span>
+
+                <span id="debug-peer-status">
+                    ---
+                </span>
+
+            </div>
+
+
+            <div class="debug-item">
+
+                <span>
+                    Peer ID
+                </span>
+
+                <code id="debug-peer-id">
+                    ---
+                </code>
+
+            </div>
+
+
+            <h3>WebRTC / ICE</h3>
+
+            <div class="debug-item">
+
+                <span>
+                    ICE状態
+                </span>
+
+                <span id="debug-ice-state">
+                    ---
+                </span>
+
+            </div>
+
+
+            <div class="debug-item">
+
+                <span>
+                    接続状態
+                </span>
+
+                <span id="debug-connection-state">
+                    ---
+                </span>
+
+            </div>
+
+
+            <h3>接続候補</h3>
+
+            <div class="debug-item">
+
+                <span>
+                    Host
+                </span>
+
+                <span id="debug-host">
+                    ---
+                </span>
+
+            </div>
+
+
+            <div class="debug-item">
+
+                <span>
+                    STUN / srflx
+                </span>
+
+                <span id="debug-srflx">
+                    ---
+                </span>
+
+            </div>
+
+
+            <div class="debug-item">
+
+                <span>
+                    TURN / relay
+                </span>
+
+                <span id="debug-relay">
+                    ---
+                </span>
+
+            </div>
+
+
+            <h3>接続経路</h3>
+
+            <div class="debug-item">
+
+                <span>
+                    使用中回線
+                </span>
+
+                <span id="debug-selected-route">
+                    ---
+                </span>
+
+            </div>
+
+
+            <div class="debug-item">
+
+                <span>
+                    Local
+                </span>
+
+                <span id="debug-local-candidate">
+                    ---
+                </span>
+
+            </div>
+
+
+            <div class="debug-item">
+
+                <span>
+                    Remote
+                </span>
+
+                <span id="debug-remote-candidate">
+                    ---
+                </span>
+
+            </div>
+
+
+            <h3>接続先</h3>
+
+            <div class="debug-item">
+
+                <span>
+                    相手Peer ID
+                </span>
+
+                <code id="debug-remote-peer">
+                    ---
+                </code>
+
+            </div>
+
+
+            <div class="debug-detail-toggle-wrap">
+                <button
+                    id="debug-detail-toggle"
+                    type="button"
+                    class="debug-detail-toggle"
+                >
+                    詳細を表示
+                </button>
+            </div>
+
+            <div
+                id="debug-detail-panel"
+                class="debug-detail-panel"
+                hidden
+            >
+                <h3>WebRTC 詳細</h3>
+
+                <div class="debug-item">
+                    <span>RTT</span>
+                    <span id="debug-rtt">---</span>
+                </div>
+
+                <div class="debug-item">
+                    <span>送信バイト</span>
+                    <span id="debug-bytes-sent">---</span>
+                </div>
+
+                <div class="debug-item">
+                    <span>受信バイト</span>
+                    <span id="debug-bytes-received">---</span>
+                </div>
+
+                <div class="debug-item">
+                    <span>パケット損失</span>
+                    <span id="debug-packets-lost">---</span>
+                </div>
+
+                <div class="debug-item">
+                    <span>生Stats</span>
+                    <pre id="debug-raw-stats" class="debug-raw-stats">---</pre>
+                </div>
+            </div>
+
+            <h3>内部ログ</h3>
+
+            <pre
+                id="debug-log"
+                class="debug-log"
+            >起動しました。</pre>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================================ -->
+    <!-- JavaScript -->
+    <!-- ================================ -->
+
+    <script>
+        window.__p2pChatReportScriptError = function (name) {
+            const message = name + " の読み込みに失敗しました";
+            if (!window.__p2pChatScriptErrorShown) {
+                alert(message);
+                window.__p2pChatScriptErrorShown = true;
+            }
+            console.error(message);
+        };
+    </script>
+
+    <script src="./main.js" onerror="window.__p2pChatReportScriptError('main.js')"></script>
+    <script src="./debug.js" onerror="window.__p2pChatReportScriptError('debug.js')"></script>
+    <script src="./chat.js" onerror="window.__p2pChatReportScriptError('chat.js')"></script>
+    <script src="./peer.js" onerror="window.__p2pChatReportScriptError('peer.js')"></script>
+
+</body>
+</html>
