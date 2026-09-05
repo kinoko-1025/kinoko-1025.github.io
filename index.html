@@ -44,6 +44,14 @@
                 </button>
 
                 <button
+                    id="reconnect"
+                    type="button"
+                    class="secondary-button"
+                >
+                    再接続
+                </button>
+
+                <button
                     id="disconnect"
                     type="button"
                     class="disconnect-button"
@@ -51,7 +59,16 @@
                     切断
                 </button>
 
-                <p id="status">
+                <button
+                    id="cancel-transfer"
+                    type="button"
+                    class="cancel-button"
+                    hidden
+                >
+                    送信停止
+                </button>
+
+                <p id="status" data-state="connecting">
                     PeerServerに接続しています...
                 </p>
 
@@ -397,6 +414,20 @@
                     <span>生Stats</span>
                     <pre id="debug-raw-stats" class="debug-raw-stats">---</pre>
                 </div>
+            </div>
+
+            <h3>テスト</h3>
+
+            <div class="debug-item debug-test-actions">
+                <button id="debug-force-peer-failure" type="button" class="debug-detail-toggle">Peer壊す</button>
+                <button id="debug-force-ice-failure" type="button" class="debug-detail-toggle">ICE壊す</button>
+                <button id="debug-force-data-failure" type="button" class="debug-detail-toggle">Data壊す</button>
+            </div>
+
+            <div class="debug-item debug-test-actions">
+                <button id="debug-force-transfer-corruption" type="button" class="debug-detail-toggle">送信破損</button>
+                <button id="debug-force-transfer-failure" type="button" class="debug-detail-toggle">送信失敗</button>
+                <button id="debug-clear-test-failure" type="button" class="debug-detail-toggle">テスト解除</button>
             </div>
 
             <h3>内部ログ</h3>
