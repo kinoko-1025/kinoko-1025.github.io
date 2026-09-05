@@ -86,13 +86,14 @@ function setupConnection(conn) {
                 "データ受信"
             );
 
-            if (
-                data &&
-                data.type === "file-chunk"
-            ) {
+            const normalized = normalizeIncomingEnvelope(data);
+            const packet = normalized.legacy ? data : normalized.data;
+            const packetPayload = packet && packet.payload ? packet.payload : packet;
+
+            if (packet && packet.type === "file-chunk") {
 
                 const isComplete =
-                    await handleIncomingFileChunk(data, conn);
+                    await handleIncomingFileChunk(packet, conn);
 
                 if (isComplete) {
                     addSystemMessage(
@@ -104,26 +105,24 @@ function setupConnection(conn) {
 
             }
 
-            if (
-                data &&
-                data.type === "file-chunk-ack"
-            ) {
+            if (packet && packet.type === "file-chunk-ack") {
 
                 const transferState =
-                    outgoingTransferState.get(data.transferId);
+                    outgoingTransferState.get(packet.transferId);
 
                 if (transferState) {
-                    transferState.ackedChunks.add(data.chunkIndex);
+                    const chunkIndex = packet.chunkIndex;
+                    transferState.ackedChunks.add(chunkIndex);
 
                     const timer =
-                        transferState.retryTimers.get(data.chunkIndex);
+                        transferState.retryTimers.get(chunkIndex);
 
                     if (timer) {
                         clearTimeout(timer);
-                        transferState.retryTimers.delete(data.chunkIndex);
+                        transferState.retryTimers.delete(chunkIndex);
                     }
 
-                    transferState.pendingChunks.delete(data.chunkIndex);
+                    transferState.pendingChunks.delete(chunkIndex);
 
                     const percent =
                         (transferState.ackedChunks.size / transferState.totalChunks) * 100;
@@ -135,7 +134,7 @@ function setupConnection(conn) {
 
                     addDebugLog(
                         "チャンクACK受信: " +
-                        data.chunkIndex +
+                        chunkIndex +
                         "/" +
                         transferState.totalChunks
                     );
@@ -144,7 +143,7 @@ function setupConnection(conn) {
                         transferState.ackedChunks.size ===
                         transferState.totalChunks
                     ) {
-                        outgoingTransferState.delete(data.transferId);
+                        outgoingTransferState.delete(packet.transferId);
                         hideTransferProgress();
                         addSystemMessage(
                             "ファイル送信を完了しました"
@@ -156,23 +155,38 @@ function setupConnection(conn) {
 
             }
 
-            if (
-                data &&
-                data.type === "file-chunk-request"
-            ) {
+            if (packet && packet.type === "file-transfer-cancelled") {
+
+                const transferId = packet.transferId;
+                const fileName = packet.name || packetPayload?.name || "ファイル";
+
+                incomingFileChunks.delete(transferId);
+                hideTransferProgress();
+                addSystemMessage(
+                    "相手が送信を停止しました: " + fileName
+                );
+                addDebugLog(
+                    "送信停止通知受信: " + transferId + " / " + fileName
+                );
+
+                return;
+
+            }
+
+            if (packet && packet.type === "file-chunk-request") {
 
                 const transferState =
-                    outgoingTransferState.get(data.transferId);
+                    outgoingTransferState.get(packet.transferId);
 
                 if (transferState && transferState.payloads) {
                     const payload =
-                        transferState.payloads.get(data.chunkIndex);
+                        transferState.payloads.get(packet.chunkIndex);
 
                     if (payload && conn && conn.open) {
-                        conn.send(payload);
+                        safeSendToConnection(conn, payload);
                         addDebugLog(
                             "チャンク再送信: " +
-                            data.chunkIndex
+                            packet.chunkIndex
                         );
                     }
                 }
@@ -181,19 +195,13 @@ function setupConnection(conn) {
 
             }
 
+            if (packet && packet.type === "text") {
 
-            // ====================================
-            // テキスト
-            // ====================================
-
-            if (
-                data &&
-                data.type === "text"
-            ) {
+                const text = packetPayload && typeof packetPayload.text === "string" ? packetPayload.text : packet.text;
 
                 addMessage(
                     "相手: " +
-                    data.text,
+                    text,
                     false
                 );
 
@@ -201,54 +209,56 @@ function setupConnection(conn) {
 
             }
 
-
-            // ====================================
-            // 画像
-            // ====================================
-
-            if (
-                data &&
-                data.type === "image"
-            ) {
+            if (packet && packet.type === "image") {
 
                 addImageMessage(
-                    data.name,
-                    data.data,
+                    packet.name || packetPayload?.name,
+                    packetPayload && packetPayload.data ? packetPayload.data : packet.data,
                     false
                 );
 
                 addDebugLog(
                     "画像受信: " +
-                    data.name
+                    (packet.name || packetPayload?.name)
                 );
 
                 return;
 
             }
 
+            if (packet && packet.type === "video") {
 
-            // ====================================
-            // ファイル
-            // ====================================
+                addVideoMessage(
+                    packet.name || packetPayload?.name,
+                    packetPayload && packetPayload.data ? packetPayload.data : packet.data,
+                    packet.mime || packetPayload?.mime,
+                    false
+                );
 
-            if (
-                data &&
-                data.type === "file"
-            ) {
+                addDebugLog(
+                    "動画受信: " +
+                    (packet.name || packetPayload?.name)
+                );
+
+                return;
+
+            }
+
+            if (packet && packet.type === "file") {
 
                 addFileMessage(
-                    data.name,
-                    data.data,
-                    data.mime,
-                    data.size,
+                    packet.name || packetPayload?.name,
+                    packetPayload && packetPayload.data ? packetPayload.data : packet.data,
+                    packet.mime || packetPayload?.mime,
+                    packet.size || packetPayload?.size,
                     false
                 );
 
                 addDebugLog(
                     "ファイル受信: " +
-                    data.name +
+                    (packet.name || packetPayload?.name) +
                     " (" +
-                    data.size +
+                    (packet.size || packetPayload?.size) +
                     " bytes)"
                 );
 
@@ -256,14 +266,8 @@ function setupConnection(conn) {
 
             }
 
-
-            // ====================================
-            // 古い形式の文字列
-            // ====================================
-
             if (
-                typeof data ===
-                "string"
+                typeof data === "string"
             ) {
 
                 addMessage(
@@ -298,24 +302,47 @@ function setupConnection(conn) {
                 "接続が切断されました"
             );
 
-            connection = null;
+            addDebugLog(
+                "DataConnection CLOSE"
+            );
 
-            if (connectionTargetId) {
+            if (!isManualDisconnect && connectionTargetId) {
                 scheduleConnectionRetry(connectionTargetId);
             }
+
+            connection = null;
+
+        }
+    );
+
+    conn.on(
+        "error",
+        error => {
 
             console.error(
                 "DataConnection error:",
                 error
             );
 
+            const errorMessage =
+                error && error.message ? error.message : String(error);
+
             addSystemMessage(
                 "接続エラーが発生しました"
             );
 
             addDebugLog(
-                "DataConnection ERROR"
+                "DataConnection ERROR: " + errorMessage
             );
+
+            showFailureAlert(
+                "データ接続が壊れました。再接続を試します。",
+                errorMessage
+            );
+
+            if (!isManualDisconnect && connectionTargetId) {
+                scheduleConnectionRetry(connectionTargetId);
+            }
 
         }
     );
@@ -328,11 +355,81 @@ function setupConnection(conn) {
 // ========================================
 
 const FILE_CHUNK_SIZE = 512 * 1024;
+const PROTOCOL_VERSION = 1;
 const incomingFileChunks = new Map();
 const outgoingTransferState = new Map();
 
 let selectedFile = null;
 let isTransmissionInProgress = false;
+
+if (typeof window !== "undefined") {
+    window.forceTransferCorruption = function(enabled = true) {
+        if (typeof globalThis !== "undefined") {
+            globalThis.__FORCE_TRANSFER_CORRUPTION__ = Boolean(enabled);
+        }
+        addSystemMessage(enabled ? "テスト: 次のファイル送信に破損を仕込みます" : "テスト: 破損仕込みを解除しました");
+        return Boolean(enabled);
+    };
+    window.forceTransferFailure = function(enabled = true) {
+        if (typeof globalThis !== "undefined") {
+            globalThis.__FORCE_TRANSFER_FAILURE__ = Boolean(enabled);
+        }
+        addSystemMessage(enabled ? "テスト: 次の送信で失敗を強制します" : "テスト: 送信失敗強制を解除しました");
+        return Boolean(enabled);
+    };
+}
+
+function buildProtocolEnvelope(type, payload = {}, options = {}) {
+    const envelope = {
+        protocolVersion: PROTOCOL_VERSION,
+        type,
+        transferId: options.transferId || payload.transferId || null,
+        chunkIndex: Number.isInteger(options.chunkIndex) ? options.chunkIndex : (
+            Number.isInteger(payload.chunkIndex) ? payload.chunkIndex : null
+        ),
+        totalChunks: Number.isInteger(options.totalChunks) ? options.totalChunks : (
+            Number.isInteger(payload.totalChunks) ? payload.totalChunks : null
+        ),
+        name: options.name || payload.name || null,
+        mime: options.mime || payload.mime || "application/octet-stream",
+        charset: options.charset || payload.charset || "utf-8",
+        size: options.size ?? payload.size ?? null,
+        fileHash: options.fileHash || payload.fileHash || null,
+        chunkHash: options.chunkHash || payload.chunkHash || null,
+        createdAt: Date.now(),
+        payload: payload && typeof payload === "object" ? payload : { value: payload }
+    };
+
+    if (type === "text") {
+        envelope.payload = {
+            text: typeof payload.text === "string" ? payload.text : String(payload),
+            charset: envelope.charset
+        };
+    }
+
+    return envelope;
+}
+
+function normalizeIncomingEnvelope(data) {
+    if (!data || typeof data !== "object") {
+        return {
+            legacy: true,
+            data
+        };
+    }
+
+    if (data.protocolVersion === PROTOCOL_VERSION && typeof data.type === "string") {
+        return {
+            legacy: false,
+            data
+        };
+    }
+
+    return {
+        legacy: true,
+        data
+    };
+}
 
 function setSendControlsLocked(locked) {
 
@@ -343,6 +440,51 @@ function setSendControlsLocked(locked) {
     sendButton.disabled = locked;
     attach.disabled = locked;
 
+}
+
+function safeSendToConnection(conn, payload) {
+    if (!conn || !conn.open) {
+        if (attemptConnectionRecovery(conn)) {
+            addDebugLog("DataChannel未開放時に自動復旧を試行しました");
+        }
+        showFailureAlert(
+            "接続が閉じているため、データを送れませんでした。",
+            "DataChannel not open"
+        );
+        return false;
+    }
+
+    try {
+        conn.send(payload);
+        return true;
+    } catch (error) {
+        console.error("DataChannel send failed:", error);
+        addDebugLog("DataChannel send失敗: " + String(error));
+        if (attemptConnectionRecovery(conn)) {
+            addDebugLog("送信失敗後に自動復旧を試行しました");
+        }
+        showFailureAlert(
+            "データ送信に失敗しました。相手との接続が壊れている可能性があります。",
+            String(error)
+        );
+        return false;
+    }
+}
+
+function cleanupTransferState(transferId) {
+    if (transferId && outgoingTransferState.has(transferId)) {
+        const transferState = outgoingTransferState.get(transferId);
+
+        if (transferState && transferState.retryTimers) {
+            transferState.retryTimers.forEach(timer => clearTimeout(timer));
+        }
+
+        outgoingTransferState.delete(transferId);
+    }
+
+    if (transferId) {
+        incomingFileChunks.delete(transferId);
+    }
 }
 
 async function computeSha256(buffer) {
@@ -395,6 +537,16 @@ function hideTransferProgress() {
 
 async function sendFileInChunks(file, connection) {
 
+    cancelTransferRequested = false;
+    transferCancelReason = null;
+    setCancelTransferButtonVisible(true);
+
+    if (file.size > 2 * 1024 * 1024) {
+        addSystemMessage(
+            "大きいファイルを分割送信します..."
+        );
+    }
+
     const totalChunks =
         Math.ceil(
             file.size /
@@ -417,102 +569,270 @@ async function sendFileInChunks(file, connection) {
         payloads: new Map()
     };
 
-    outgoingTransferState.set(transferId, transferState);
-    updateTransferProgress("送信中", 0);
+    outgoingTransferState.set(
+        transferId,
+        transferState
+    );
 
-    for (let index = 0; index < totalChunks; index++) {
+    updateTransferProgress(
+        "送信中",
+        0
+    );
 
-        const start =
-            index * FILE_CHUNK_SIZE;
+    try {
 
-        const end =
-            Math.min(
-                start + FILE_CHUNK_SIZE,
-                file.size
-            );
+        for (
+            let index = 0;
+            index < totalChunks;
+            index++
+        ) {
 
-        const chunk =
-            file.slice(
-                start,
-                end
-            );
-
-        const chunkBuffer =
-            await chunk.arrayBuffer();
-
-        const chunkHash =
-            await computeSha256(chunkBuffer);
-
-        const payload = {
-            type: "file-chunk",
-            transferId,
-            chunkIndex: index,
-            totalChunks,
-            name: file.name,
-            mime: file.type || "application/octet-stream",
-            size: file.size,
-            fileHash,
-            chunkHash,
-            data: chunkBuffer
-        };
-
-        transferState.payloads.set(index, payload);
-        transferState.pendingChunks.set(index, payload);
-
-        const retryTimer = setTimeout(() => {
-            const activeTransfer = outgoingTransferState.get(transferId);
-
-            if (!activeTransfer || activeTransfer.ackedChunks.has(index)) {
-                return;
-            }
-
-            if (connection && connection.open) {
-                connection.send(payload);
-                addDebugLog(
-                    "チャンク再送信タイムアウト: " +
-                    index +
-                    "/" +
-                    totalChunks
+            if (cancelTransferRequested) {
+                throw new Error(
+                    "transfer-cancelled"
                 );
             }
-        }, 4000);
 
-        transferState.retryTimers.set(index, retryTimer);
-        connection.send(payload);
+            const start =
+                index *
+                FILE_CHUNK_SIZE;
 
-        const percent =
-            ((index + 1) / totalChunks) * 100;
+            const end =
+                Math.min(
+                    start +
+                    FILE_CHUNK_SIZE,
+                    file.size
+                );
 
-        updateTransferProgress(
-            "送信中",
-            percent
+            const chunk =
+                file.slice(
+                    start,
+                    end
+                );
+
+            const chunkBuffer =
+                await chunk.arrayBuffer();
+
+            const chunkHash =
+                await computeSha256(
+                    chunkBuffer
+                );
+
+            const payload = buildProtocolEnvelope(
+                "file-chunk",
+                {
+                    data: chunkBuffer,
+                    name: file.name,
+                    mime: file.type || "application/octet-stream",
+                    size: file.size,
+                    fileHash,
+                    chunkHash,
+                    transferId,
+                    chunkIndex: index,
+                    totalChunks
+                },
+                {
+                    transferId,
+                    chunkIndex: index,
+                    totalChunks,
+                    name: file.name,
+                    mime: file.type || "application/octet-stream",
+                    size: file.size,
+                    fileHash,
+                    chunkHash
+                }
+            );
+
+            if (typeof globalThis !== "undefined" && globalThis.__FORCE_TRANSFER_CORRUPTION__) {
+                const corruptedData = new Uint8Array(chunkBuffer.byteLength + 1);
+                const original = new Uint8Array(chunkBuffer);
+                corruptedData.set(original, 0);
+                corruptedData[corruptedData.length - 1] = 0xFF;
+
+                payload.payload.data = corruptedData.buffer;
+                payload.payload.chunkHash = "corrupt-test-hash";
+                payload.payload.fileHash = fileHash;
+                payload.payload.name = file.name;
+                payload.payload.size = file.size;
+
+                addDebugLog("テスト用破損を挿入: transferId=" + transferId + ", chunkIndex=" + index);
+                globalThis.__FORCE_TRANSFER_CORRUPTION__ = false;
+            }
+
+            if (typeof globalThis !== "undefined" && globalThis.__FORCE_TRANSFER_FAILURE__) {
+                addDebugLog("テスト用送信失敗を強制: transferId=" + transferId + ", chunkIndex=" + index);
+                globalThis.__FORCE_TRANSFER_FAILURE__ = false;
+                throw new Error("forced-transfer-failure");
+            }
+
+            transferState.payloads.set(
+                index,
+                payload
+            );
+
+            transferState.pendingChunks.set(
+                index,
+                payload
+            );
+
+            const retryTimer =
+                setTimeout(
+                    () => {
+
+                        const activeTransfer =
+                            outgoingTransferState.get(
+                                transferId
+                            );
+
+                        if (
+                            !activeTransfer ||
+                            activeTransfer.ackedChunks.has(
+                                index
+                            )
+                        ) {
+                            return;
+                        }
+
+                        if (
+                            connection &&
+                            connection.open
+                        ) {
+
+                            safeSendToConnection(connection, payload);
+
+                            addDebugLog(
+                                "チャンク再送信タイムアウト: " +
+                                index +
+                                "/" +
+                                totalChunks
+                            );
+
+                        }
+
+                    },
+                    4000
+                );
+
+            transferState.retryTimers.set(
+                index,
+                retryTimer
+            );
+
+            safeSendToConnection(connection, payload);
+
+            const percent =
+                (
+                    (index + 1) /
+                    totalChunks
+                ) * 100;
+
+            updateTransferProgress(
+                "送信中",
+                percent
+            );
+
+            addDebugLog(
+                "ファイルチャンク送信: " +
+                file.name +
+                " (" +
+                (index + 1) +
+                "/" +
+                totalChunks +
+                ")"
+            );
+
+        }
+
+        addSystemMessage(
+            "大きいファイルを分割送信しました: " +
+            file.name
         );
 
-        addDebugLog(
-            "ファイルチャンク送信: " +
-            file.name +
-            " (" +
-            (index + 1) +
-            "/" +
-            totalChunks +
-            ")"
+    } catch (error) {
+
+        if (
+            error &&
+            error.message ===
+            "transfer-cancelled"
+        ) {
+
+            if (connection && connection.open) {
+                safeSendToConnection(connection, buildProtocolEnvelope(
+                    "file-transfer-cancelled",
+                    {
+                        name: file.name,
+                        reason: "user-cancelled"
+                    },
+                    {
+                        transferId,
+                        name: file.name
+                    }
+                ));
+            }
+
+            addSystemMessage(
+                "ファイル送信を停止しました: " +
+                file.name
+            );
+
+            addDebugLog(
+                "送信停止通知送信: " +
+                transferId +
+                " / " +
+                file.name
+            );
+
+        } else {
+
+            console.error(
+                "ファイル送信エラー:",
+                error
+            );
+
+            showFailureAlert(
+                "ファイル送信が壊れました。送信を中断しました。",
+                String(error)
+            );
+
+            addSystemMessage(
+                "ファイル送信中にエラーが発生しました"
+            );
+
+        }
+
+    } finally {
+
+        cleanupTransferState(transferId);
+
+        cancelTransferRequested =
+            false;
+
+        transferCancelReason =
+            null;
+
+        setCancelTransferButtonVisible(
+            false
         );
+
+        hideTransferProgress();
+
+        // 添付ファイルをクリア
+        selectedFile =
+            null;
+
+        fileInput.value =
+            "";
 
     }
-
-    hideTransferProgress();
-
-    addSystemMessage(
-        "大きいファイルを分割送信しました: " + file.name
-    );
 
 }
 
 async function handleIncomingFileChunk(data, conn) {
 
-    const transferId = data.transferId;
-    const chunkIndex = data.chunkIndex;
-    const totalChunks = data.totalChunks;
+    const transferId = data.transferId || data.payload?.transferId;
+    const chunkIndex = data.chunkIndex ?? data.payload?.chunkIndex;
+    const totalChunks = data.totalChunks ?? data.payload?.totalChunks;
+    const actualPayload = data.payload && typeof data.payload === "object" ? data.payload : data;
 
     if (!transferId) {
         return false;
@@ -520,32 +840,41 @@ async function handleIncomingFileChunk(data, conn) {
 
     if (!incomingFileChunks.has(transferId)) {
         incomingFileChunks.set(transferId, {
-            name: data.name,
-            mime: data.mime || "application/octet-stream",
-            size: data.size,
-            fileHash: data.fileHash || null,
+            name: actualPayload.name || data.name,
+            mime: actualPayload.mime || data.mime || "application/octet-stream",
+            size: actualPayload.size || data.size,
+            fileHash: actualPayload.fileHash || data.fileHash || null,
             totalChunks,
             chunks: new Map()
         });
     }
 
     const item = incomingFileChunks.get(transferId);
-    const receivedChunk = new Uint8Array(data.data);
+    const receivedChunk = new Uint8Array(actualPayload.data || data.data);
     const chunkHash = await computeSha256(receivedChunk.buffer);
 
-    if (data.chunkHash && data.chunkHash !== chunkHash) {
+    if (actualPayload.chunkHash && actualPayload.chunkHash !== chunkHash) {
         addSystemMessage(
             "チャンクの整合性チェックに失敗しました: " +
-            data.name
+            actualPayload.name
         );
 
+        if (attemptConnectionRecovery(conn)) {
+            addDebugLog("ファイルチャンク破損時に接続自動復旧を試行しました");
+        }
+        
         if (conn && conn.open) {
-            conn.send({
-                type: "file-chunk-request",
-                transferId,
-                chunkIndex,
-                reason: "hash-mismatch"
-            });
+            safeSendToConnection(conn, buildProtocolEnvelope(
+                "file-chunk-request",
+                {
+                    reason: "hash-mismatch"
+                },
+                {
+                    transferId,
+                    chunkIndex,
+                    mime: "application/octet-stream"
+                }
+            ));
         }
 
         incomingFileChunks.delete(transferId);
@@ -555,12 +884,15 @@ async function handleIncomingFileChunk(data, conn) {
     item.chunks.set(chunkIndex, receivedChunk);
 
     if (conn && conn.open) {
-        conn.send({
-            type: "file-chunk-ack",
-            transferId,
-            chunkIndex,
-            totalChunks
-        });
+        safeSendToConnection(conn, buildProtocolEnvelope(
+            "file-chunk-ack",
+            {},
+            {
+                transferId,
+                chunkIndex,
+                totalChunks
+            }
+        ));
     }
 
     const percent =
@@ -624,13 +956,36 @@ async function handleIncomingFileChunk(data, conn) {
         }
     }
 
-    addFileMessage(
-        item.name,
-        combinedBuffer,
-        item.mime,
-        item.size,
-        false
-    );
+    const isVideoFile =
+        typeof item.mime === "string" &&
+        item.mime.startsWith("video/");
+
+    if (isVideoFile) {
+        const videoUrl =
+            URL.createObjectURL(
+                new Blob(
+                    [combinedBuffer],
+                    {
+                        type: item.mime
+                    }
+                )
+            );
+
+        addVideoMessage(
+            item.name,
+            videoUrl,
+            item.mime,
+            false
+        );
+    } else {
+        addFileMessage(
+            item.name,
+            combinedBuffer,
+            item.mime,
+            item.size,
+            false
+        );
+    }
 
     hideTransferProgress();
     incomingFileChunks.delete(transferId);
@@ -710,6 +1065,7 @@ sendButton.addEventListener(
 
         isTransmissionInProgress = true;
         setSendControlsLocked(true);
+        setCancelTransferButtonVisible(Boolean(selectedFile));
 
         try {
 
@@ -755,7 +1111,7 @@ sendButton.addEventListener(
 
                     reader.onload = () => {
 
-                        connection.send({
+                        safeSendToConnection(connection, {
 
                             type:
                                 "image",
@@ -826,6 +1182,47 @@ sendButton.addEventListener(
 
 
             // ==================================
+            // 動画
+            // ==================================
+
+            if (
+                file.type.startsWith(
+                    "video/"
+                )
+            ) {
+
+                try {
+                    await sendFileInChunks(
+                        file,
+                        connection
+                    );
+
+                    addDebugLog(
+                        "動画送信: " +
+                        file.name
+                    );
+
+                    return;
+
+                } catch (error) {
+
+                    console.error(
+                        "動画送信エラー:",
+                        error
+                    );
+
+                    addSystemMessage(
+                        "動画の送信に失敗しました"
+                    );
+
+                }
+
+                return;
+
+            }
+
+
+            // ==================================
             // 通常ファイル
             // ==================================
 
@@ -855,25 +1252,20 @@ sendButton.addEventListener(
                     await file.arrayBuffer();
 
 
-                connection.send({
-
-                    type:
-                        "file",
-
-                    name:
-                        file.name,
-
-                    mime:
-                        file.type ||
-                        "application/octet-stream",
-
-                    size:
-                        file.size,
-
-                    data:
-                        data
-
-                });
+                safeSendToConnection(connection, buildProtocolEnvelope(
+                    "file",
+                    {
+                        name: file.name,
+                        mime: file.type || "application/octet-stream",
+                        size: file.size,
+                        data: data
+                    },
+                    {
+                        name: file.name,
+                        mime: file.type || "application/octet-stream",
+                        size: file.size
+                    }
+                ));
 
 
                 addFileMessage(
@@ -935,15 +1327,16 @@ sendButton.addEventListener(
             }
 
 
-            connection.send({
-
-                type:
-                    "text",
-
-                text:
-                    message
-
-            });
+            safeSendToConnection(connection, buildProtocolEnvelope(
+                "text",
+                {
+                    text: message,
+                    charset: "utf-8"
+                },
+                {
+                    charset: "utf-8"
+                }
+            ));
 
 
             addMessage(
@@ -960,6 +1353,9 @@ sendButton.addEventListener(
 
             isTransmissionInProgress = false;
             setSendControlsLocked(false);
+            setCancelTransferButtonVisible(false);
+            cancelTransferRequested = false;
+            transferCancelReason = null;
 
         }
 
@@ -1281,6 +1677,87 @@ function addImageMessage(
     );
 
 
+    messages.scrollTop =
+        messages.scrollHeight;
+
+}
+
+
+// ========================================
+// 動画表示
+// ========================================
+
+function addVideoMessage(
+    name,
+    data,
+    mime = "video/mp4",
+    self = false
+) {
+
+    const container =
+        document.createElement(
+            "div"
+        );
+
+    container.className =
+        "video-message";
+
+    if (self) {
+        container.classList.add(
+            "self"
+        );
+    }
+
+    const label =
+        document.createElement(
+            "p"
+        );
+
+    label.textContent =
+        self
+            ? "自分: " + name
+            : "相手: " + name;
+
+    const video =
+        document.createElement(
+            "video"
+        );
+
+    video.src = data;
+    video.controls = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+    video.style.maxWidth = "420px";
+    video.style.maxHeight = "320px";
+    video.style.width = "100%";
+    video.style.borderRadius = "10px";
+    video.style.background = "#000";
+    video.style.display = "block";
+
+    const info =
+        document.createElement(
+            "p"
+        );
+
+    info.textContent =
+        mime || "video/mp4";
+    info.style.fontSize = "12px";
+    info.style.color = "#666";
+    info.style.margin = "6px 0 0";
+
+    container.appendChild(
+        label
+    );
+    container.appendChild(
+        video
+    );
+    container.appendChild(
+        info
+    );
+
+    messages.appendChild(
+        container
+    );
     messages.scrollTop =
         messages.scrollHeight;
 
