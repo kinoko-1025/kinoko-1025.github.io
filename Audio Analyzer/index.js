@@ -3,7 +3,7 @@ const number = document.getElementById("number");
 
 
 // 表示する数値
-let value = 12345;
+let value = audioBuffer.getChannelData(0);
 
 
 // 画面に表示
