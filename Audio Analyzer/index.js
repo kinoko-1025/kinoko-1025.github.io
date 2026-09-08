@@ -2,14 +2,6 @@ const fileInput = document.getElementById("audio-file");
 const number = document.getElementById("number");
 
 
-// 表示する数値
-let value = 123456
-
-
-// 画面に表示
-number.textContent = value;
-
-
 fileInput.addEventListener("change", async (event) => {
 
     const file = event.target.files[0];
@@ -26,7 +18,11 @@ fileInput.addEventListener("change", async (event) => {
     
     concole.log(data);
     console.log(audioBuffer);
-    
+
+    let number = audioBuffer;
+
 
 
 });
+
+number.textContent = value;
